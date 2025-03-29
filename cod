@@ -1,0 +1,86 @@
+def gcd(a, b):
+    """Calculates the greatest common divisor (GCD) of a and b."""
+    while b:
+        a, b = b, a % b
+    return a
+
+def extended_gcd(a, b):
+    """
+    Extended Euclidean algorithm to find the GCD and coefficients x, y
+    such that ax + by = gcd(a, b).
+    """
+    if a == 0:
+        return b, 0, 1
+    
+    d, x1, y1 = extended_gcd(b % a, a)
+    x = y1 - (b // a) * x1
+    y = x1
+    
+    return d, x, y
+
+def solve_linear_diophantine(a, b, c):
+    """
+    Solves the linear Diophantine equation ax + by = c.
+    Returns a tuple (x, y) that is a solution, or None if no solution exists.
+    """
+    g, x, y = extended_gcd(a, b)
+
+    if c % g != 0:
+        return None
+
+    x *= c // g
+    y *= c // g
+
+    return x, y
+
+def find_smallest_non_negative_x(a, b, c):
+    """
+    Finds the solution (x, y) of ax + by = c where x is the smallest
+    non-negative integer.
+    """
+    solution = solve_linear_diophantine(a, b, c)
+
+    if solution is None:
+        return "Impossible"
+
+    x0, y0 = solution
+    g = gcd(a, b)
+
+    if b == 0 : #Handle case when b is zero
+      if a * x0 == c and x0 >= 0:
+          return str(x0) + " " + str(0)
+      else: return "Impossible"
+
+
+    x_range_start = (-(x0) * g) // (b // g)
+    if ((x0) * g + (b//g) * x_range_start < 0):
+      x_range_start +=1
+    
+
+    best_x = float('inf')
+    best_y = float('inf')
+
+    for k in range(x_range_start, x_range_start + abs(b) + 1): #Iterate through possible k values
+        x = x0 + (b // g) * k
+        y = y0 - (a // g) * k
+
+        if x >= 0 :
+            if x < best_x:
+                best_x = x
+                best_y = y
+            elif x == best_x and y < best_y:
+                best_x = x
+                best_y = y
+
+    if best_x == float('inf'):
+        return "Impossible"
+    else:
+        return str(int(best_x)) + " " + str(int(best_y))
+
+if __name__ == "__main__":
+    a = int(input("Enter the value of a: "))
+    b = int(input("Enter the value of b: "))
+    c = int(input("Enter the value of c: "))
+
+    result = find_smallest_non_negative_x(a, b, c)
+    print(result)
