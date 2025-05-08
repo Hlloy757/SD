@@ -1,0 +1,115 @@
+#include <iostream>
+#include <vector>
+#include <numeric> // std::iota
+#include <algorithm> // std::rotate
+
+using namespace std;
+
+int main() {
+  int n, m, s, k, l;
+
+  cout << "Введите количество монет гербом вверх (N): ";
+  cin >> n;
+  cout << "Введите количество монет гербом вниз (M): ";
+  cin >> m;
+  cout << "Введите шаг переворачивания (S): ";
+  cin >> s;
+  cout << "Введите количество ходов (K): ";
+  cin >> k;
+  cout << "Введите желаемое количество монет гербом вверх (L): ";
+  cin >> l;
+
+  int total_coins = n + m;
+
+  // Создаем вектор, представляющий круг монет.  1 - герб вверх, 0 - герб вниз
+  vector<int> coins(total_coins);
+
+  // Генерируем все возможные начальные расстановки монет (все перестановки)
+  vector<int> initial_permutation(total_coins);
+  for(int i=0; i<n; ++i) {
+    initial_permutation[i] = 1;
+  }
+
+  vector<int> best_permutation; // Лучшая найденная перестановка
+  int best_score = -1; // Счет лучшей перестановки (насколько L совпадает с результатом)
+
+  // Используем перебор всех перестановок
+  vector<int> p(total_coins);
+  iota(p.begin(), p.end(), 0); // Заполняем p индексами от 0 до total_coins - 1
+
+  do {
+    // Создаем начальную расстановку монет на основе текущей перестановки p
+    for(int i=0; i<total_coins; ++i) {
+      coins[i] = (i < n) ? initial_permutation[p[i]] : 0;  //Расставляем гербы вверх и вниз по списку p.
+    }
+
+    // Выполняем K ходов переворачивания
+    int current_coin_index = 0;
+    for (int move = 0; move < k; ++move) {
+      current_coin_index = (current_coin_index + s - 1) % total_coins; // Вычисляем индекс монеты для переворачивания
+      coins[current_coin_index] = 1 - coins[current_coin_index]; // Переворачиваем монету (1 -> 0, 0 -> 1)
+    }
+
+    // Подсчитываем количество монет гербом вверх после K ходов
+    int heads_count = 0;
+    for (int coin : coins) {
+      if (coin == 1) {
+        heads_count++;
+      }
+    }
+
+    // Оцениваем, насколько хорошо текущая расстановка соответствует желаемому количеству гербов вверх (L)
+    int current_score = abs(heads_count - l); // Чем меньше, тем лучше
+
+    //Если число монет гербом вверх сопало полностью, то вывод и выход из программы
+     if (current_score ==0){
+         cout << "Найдена расстановка монет, приводящая к L монетам гербом вверх!" << endl;
+            for(int i=0; i<total_coins; ++i) {
+              if(i < n){
+                 cout <<p[i] << " ";
+               }
+               else{
+                    cout<< p[i]<<"* ";
+               }
+
+
+      }
+            return 0;
+
+     }
+
+
+    // Сохраняем расстановку, если она лучше предыдущей
+    if (best_score == -1 || current_score < best_score) {
+      best_score = current_score;
+      best_permutation = vector<int>(total_coins);
+
+        for(int i=0; i<total_coins; ++i) {
+             best_permutation[i] = p[i];
+        }
+
+
+    }
+  } while (next_permutation(p.begin(), p.end())); // Генерируем следующую перестановку p
+
+  // Если нашли хоть какую-то расстановку
+  if (best_score != -1) {
+    cout << "Наилучшая найденная расстановка монет (отличается от L на " << best_score << "):" << endl;
+
+            for(int i=0; i<total_coins; ++i) {
+               if(i < n){
+                 cout <<best_permutation[i] << " ";
+               }
+               else{
+                    cout<< best_permutation[i]<<"* ";
+               }
+
+
+      }
+    cout << endl;
+  } else {
+    cout << "Не найдено ни одной расстановки монет, приводящей к L монетам гербом вверх." << endl;
+  }
+
+  return 0;
+}
