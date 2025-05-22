@@ -1,0 +1,97 @@
+#include <iostream>
+#include <vector>
+#include <chrono>
+#include <random>
+#include <cblas.h>
+#include <cmath>
+
+// Блочный размер для оптимизации
+const int BLOCK_SIZE = 64;
+
+// Инициализация матрицы случайными числами
+void init_matrix(std::vector<float>& mat) {
+    std::mt19937 gen(42); // фиксированный seed
+    std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+    for (auto& val : mat)
+        val = dist(gen);
+}
+
+// Наивное перемножение (тройной цикл)
+void naive_mult(const std::vector<float>& A, const std::vector<float>& B, std::vector<float>& C, int N) {
+    for (int i = 0; i < N; ++i)
+        for (int j = 0; j < N; ++j)
+            for (int k = 0; k < N; ++k)
+                C[i * N + j] += A[i * N + k] * B[k * N + j];
+}
+
+// Оптимизированное блочное перемножение
+void blocked_mult(const std::vector<float>& A, const std::vector<float>& B, std::vector<float>& C, int N) {
+    int block = BLOCK_SIZE;
+    for (int ii = 0; ii < N; ii += block)
+        for (int jj = 0; jj < N; jj += block)
+            for (int kk = 0; kk < N; kk += block)
+                for (int i = ii; i < std::min(ii + block, N); ++i)
+                    for (int k = kk; k < std::min(kk + block, N); ++k)
+                        for (int j = jj; j < std::min(jj + block, N); ++j)
+                            C[i * N + j] += A[i * N + k] * B[k * N + j];
+}
+
+// Вычисление MFLOPS
+void compute_perf(double time_sec, int N) {
+    double ops = 2.0 * N * N * N;
+    double mflops = (ops / time_sec) / 1e6;
+    std::cout << "Time: " << time_sec << " s, MFLOPS: " << mflops << std::endl;
+}
+
+int main() {
+    // Размеры
+    const int N1 = 1024;  // для наивного умножения
+    const int N2 = 4096;  // для OpenBLAS и блочного умножения
+
+    // Векторы для первого варианта (N1 x N1)
+    std::vector<float> A1(N1 * N1), B1(N1 * N1), C1(N1 * N1, 0);
+
+    init_matrix(A1);
+    init_matrix(B1);
+
+    std::cout << "=== Naive multiplication (1024x1024) ===" << std::endl;
+    auto start = std::chrono::high_resolution_clock::now();
+    naive_mult(A1, B1, C1, N1);
+    auto end = std::chrono::high_resolution_clock::now();
+    double t1 = std::chrono::duration<double>(end - start).count();
+    compute_perf(t1, N1);
+
+    // Векторы для второго и третьего вариантов (N2 x N2)
+    std::vector<float> A2(N2 * N2), B2(N2 * N2), C2(N2 * N2, 0), C3(N2 * N2, 0);
+
+    init_matrix(A2);
+    init_matrix(B2);
+
+    std::cout << "\n=== OpenBLAS SGEMM (4096x4096) ===" << std::endl;
+    start = std::chrono::high_resolution_clock::now();
+    cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
+        N2, N2, N2, 1.0f, A2.data(), N2, B2.data(), N2, 0.0f, C2.data(), N2);
+    end = std::chrono::high_resolution_clock::now();
+    double t2 = std::chrono::duration<double>(end - start).count();
+    compute_perf(t2, N2);
+
+    std::cout << "\n=== Blocked multiplication (4096x4096) ===" << std::endl;
+    start = std::chrono::high_resolution_clock::now();
+    blocked_mult(A2, B2, C3, N2);
+    end = std::chrono::high_resolution_clock::now();
+    double t3 = std::chrono::duration<double>(end - start).count();
+    compute_perf(t3, N2);
+
+    // Сравнение точности (расхождение)
+    float max_diff = 0;
+    for (int i = 0; i < N2 * N2; ++i)
+        max_diff = std::max(max_diff, std::abs(C2[i] - C3[i]));
+
+    std::cout << "\nMax difference between OpenBLAS and blocked: " << max_diff << std::endl;
+
+    // Проверка производительности
+    double perf_ratio = t2 / t3;
+    std::cout << "Blocked version is " << (perf_ratio * 100.0) << "% of OpenBLAS performance\n";
+
+    return 0;
+}
